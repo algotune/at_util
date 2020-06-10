@@ -7,7 +7,11 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = []
+requirements = ['mysqlclient>=1.4.6',
+                'pandas>=1.0.0',
+                'SQLAlchemy>=1.3.17',
+                'pyarrow>=0.17.1'
+                ]
 setup_requirements = ['pytest-runner']
 
 test_requirements = ['pytest>=3']
