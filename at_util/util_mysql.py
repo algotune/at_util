@@ -7,6 +7,9 @@ from sqlalchemy import create_engine, event, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 import logging
 import numpy as np
+import re
+import pandas as pd
+import pandas.io.sql as pandas_sql
 
 
 def add_engine_pidguard(engine):
@@ -85,3 +88,47 @@ def get_session_from_env(env_host, env_user, env_pass, env_db_name):
         result_session = gen_session(**default_dict)
         logging.info('session [{}] created'.format(env_db_name))
     return result_session
+
+
+# mysql helper functions for db operations
+def fix_query_str(sql_str):
+    """
+    # fix an issue withe query having % within
+    # for instance query = '%%usd%%'
+    :param sql_str:
+    :return:
+    usage:
+        >>> sql_str = 'blah%%dfk%% somethingelse% again%something %blahblah'
+        >>> fix_query_str(sql_str)
+    """
+
+    if '%' in sql_str:
+        assert '|' not in sql_str, 'both % and | in query cannot handle'
+        _temp_query = re.sub('%+', '|', sql_str)
+        sql_str = _temp_query.replace('|', '%%')
+    return sql_str
+
+
+def db_select(db_session, sql_str, return_df=True, pd_native=True):
+    """
+    :param db_session:
+    :param sql_str:
+    :param return_df:
+    :param pd_native:
+    :return:
+
+    """
+
+    if pd_native:
+        if '%' in sql_str:
+            sql_str = fix_query_str(sql_str)
+        result = pandas_sql.read_sql(sql_str, con=db_session.bind)
+    else:
+        result = db_session.execute(sql_str)
+        if return_df:
+            result = pd.DataFrame(result.fetchall(), columns=[x[0] for x in
+                                                              result._cursor_description()])
+        else:
+            result = result.fetchall()
+    db_session.remove()
+    return result
